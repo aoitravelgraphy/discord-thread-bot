@@ -19,8 +19,8 @@ async def on_message(message):
 
     try:
         await message.create_thread(
-            name=message.content[:15],
-            auto_archive_duration=1440
+            name=message.content[:10],
+            auto_archive_duration=60
         )
     except:
         pass
