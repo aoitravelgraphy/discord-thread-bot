@@ -21,37 +21,41 @@ async def on_message(message):
     if not (message.content.startswith('？') or message.content.startswith('?')): return
 
     query = message.content[1:].strip()
-    print(f"--- 検索開始: {query} ---")
+    print(f"--- 検索キーワード: {query} ---")
 
     try:
-        # データベースから全件取得
         response = notion.databases.query(database_id=DATABASE_ID)
         
         for page in response['results']:
             props = page['properties']
             
-            # 1. 「Name」列（タイトル）から文字を抽出
-            name_data = props.get('Name', {}).get('title', [])
-            actual_name = name_data[0]['plain_text'] if name_data else ""
+            # Name列（タイトル）の取得
+            name_obj = props.get('Name', {}).get('title', [])
+            actual_name = name_obj[0]['plain_text'] if name_obj else ""
             
-            print(f"チェック中: {actual_name}")
-
-            # 2. 文字が一致したら回答を探す
             if actual_name == query:
-                desc_data = props.get('Description', {}).get('rich_text', [])
+                print(f"✅ 「{query}」を発見しました。回答を抽出します。")
+                
+                # Description列の取得（あらゆる形式に対応）
+                desc_prop = props.get('Description', {})
+                desc_data = desc_prop.get('rich_text', [])
+                
+                answer = ""
                 if desc_data:
-                    answer = desc_data[0]['plain_text']
-                    # スレッドを作成して回答を送信
+                    # 複数のテキストが入っていても全部連結する
+                    answer = "".join([t['plain_text'] for t in desc_data])
+                
+                if answer:
                     thread = await message.create_thread(name=query, auto_archive_duration=60)
                     await thread.send(answer)
-                    print(f"送信完了: {actual_name}")
-                    return # 見つかったら終了
+                    print(f"✨ 送信完了!")
+                    return
+                else:
+                    print(f"⚠️ Descriptionが空、または形式が違います。")
+                    await message.channel.send(f"「{query}」は見つかりましたが、回答（Description）が空っぽです。")
+                    return
 
-        # 最後まで見つからなかった場合
-        await message.channel.send(f"「{query}」という項目がNotionで見つかりませんでした。")
+        await message.channel.send(f"Notionに「{query}」という項目が見つかりませんでした。")
 
     except Exception as e:
-        print(f"エラー発生: {e}")
-        await message.channel.send("エラーが起きました。設定を確認してください。")
-
-client.run(TOKEN)
+        print(f"❌ エラー発生: {e}")
