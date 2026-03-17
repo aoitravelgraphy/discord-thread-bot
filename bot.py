@@ -2,7 +2,7 @@ import discord
 import os
 
 # 変数名を統一し、どちらの環境変数名でも動くようにします
-TOKEN = os.getenv('DISCORD_BOT_TOKEN') or os.getenv('TOKEN')
+TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 if TOKEN is None:
     raise ValueError("トークンが読み込めません。RailwayのVariablesを確認してください。")
