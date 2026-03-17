@@ -1,33 +1,37 @@
 import discord
 import os
-import discord
 
-TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+# 変数名を統一し、どちらの環境変数名でも動くようにします
+TOKEN = os.getenv('DISCORD_BOT_TOKEN') or os.getenv('TOKEN')
 
-TOKEN = os.getenv("TOKEN")
 if TOKEN is None:
-    raise ValueError("DISCORD_BOT_TOKEN が読み込めません。Railway の環境変数を確認してください。")
+    raise ValueError("トークンが読み込めません。RailwayのVariablesを確認してください。")
 
 intents = discord.Intents.default()
 intents.message_content = True
-
 client = discord.Client(intents=intents)
 
 @client.event
-@@ -16,13 +18,14 @@ async def on_ready():
+async def on_ready():
+    print(f"起動完了: {client.user}")
+
+@client.event
 async def on_message(message):
+    # ボットの発言には反応しない
     if message.author.bot:
         return
 
-    try:
-        await message.create_thread(
-            name=message.content[:10],
-            auto_archive_duration=60
-        )
-    except:
-        pass
-        print("スレッド作成成功")
-    except Exception as e:
-        print(f"スレッド作成失敗: {e}")
+    # 「？」から始まる時だけスレッドを作る
+    if message.content.startswith('？') or message.content.startswith('?'):
+        try:
+            # メッセージの最初の10文字をスレッド名にする
+            thread_name = message.content[:10]
+            await message.create_thread(
+                name=thread_name,
+                auto_archive_duration=60
+            )
+            print(f"スレッド作成成功: {thread_name}")
+        except Exception as e:
+            print(f"スレッド作成失敗: {e}")
 
 client.run(TOKEN)
