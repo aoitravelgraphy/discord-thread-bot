@@ -17,46 +17,41 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author.bot:
-        return
+    if message.author.bot: return
+    if not (message.content.startswith('？') or message.content.startswith('?')): return
 
-    if message.content.startswith('？') or message.content.startswith('?'):
-        query = message.content[1:].strip()
-        print(f"--- 診断開始: 検索ワード「{query}」 ---")
+    query = message.content[1:].strip()
+    print(f"--- 検索開始: {query} ---")
 
-        try:
-            # 全件取得して、中身がどう見えているかログに出す
-            db_data = notion.databases.query(database_id=DATABASE_ID)
+    try:
+        # データベースから全件取得
+        response = notion.databases.query(database_id=DATABASE_ID)
+        
+        for page in response['results']:
+            props = page['properties']
             
-            found = False
-            for page in db_data['results']:
-                # Notion上の「Name」という名前の列を探す
-                props = page['properties']
-                name_prop = props.get('Name', {})
-                
-                # タイトルの中身を取り出す
-                actual_name = ""
-                if 'title' in name_prop and name_prop['title']:
-                    actual_name = name_prop['title'][0]['plain_text']
-                
-                print(f"Notionにあるデータを確認中: 「{actual_name}」")
-
-                if actual_name == query:
-                    print("一致するデータを見つけました！回答を準備します。")
-                    desc_prop = props.get('Description', {})
-                    if 'rich_text' in desc_prop and desc_prop['rich_text']:
-                        answer = desc_prop['rich_text'][0]['plain_text']
-                        thread = await message.create_thread(name=query, auto_archive_duration=60)
-                        await thread.send(answer)
-                        found = True
-                        break
+            # 1. 「Name」列（タイトル）から文字を抽出
+            name_data = props.get('Name', {}).get('title', [])
+            actual_name = name_data[0]['plain_text'] if name_data else ""
             
-            if not found:
-                print(f"エラー: Notionの中に「{query}」と完全に一致するNameが見つかりませんでした。")
-                await message.channel.send(f"「{query}」と一致する項目がNotionにありません。")
+            print(f"チェック中: {actual_name}")
 
-        except Exception as e:
-            print(f"致命的なエラーが発生しました: {e}")
-            await message.channel.send("エラーが起きました。ログを確認してください。")
+            # 2. 文字が一致したら回答を探す
+            if actual_name == query:
+                desc_data = props.get('Description', {}).get('rich_text', [])
+                if desc_data:
+                    answer = desc_data[0]['plain_text']
+                    # スレッドを作成して回答を送信
+                    thread = await message.create_thread(name=query, auto_archive_duration=60)
+                    await thread.send(answer)
+                    print(f"送信完了: {actual_name}")
+                    return # 見つかったら終了
+
+        # 最後まで見つからなかった場合
+        await message.channel.send(f"「{query}」という項目がNotionで見つかりませんでした。")
+
+    except Exception as e:
+        print(f"エラー発生: {e}")
+        await message.channel.send("エラーが起きました。設定を確認してください。")
 
 client.run(TOKEN)
